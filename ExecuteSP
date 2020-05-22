@@ -1,0 +1,58 @@
+using System;
+using System.Activities;
+using System.ComponentModel;
+using System.Data;
+using System.Data.SqlClient;
+
+namespace SPReturnVal
+{
+    public class ExecuteSP : CodeActivity
+    {
+        [Category("Input")]
+        [RequiredArgument]
+        public InArgument<String> ConnectionString { get; set; }
+
+        [Category("Input")]
+        public InArgument<String> SPName { get; set; }
+
+        [Category("Input")]
+        [RequiredArgument]
+        public InArgument<String> ListName { get; set; }
+
+        [Category("Input")]
+        [RequiredArgument]
+        public InArgument<String> ListValue { get; set; }
+
+        [Category("Output")]
+        public OutArgument<int> ResultNumber { get; set; }
+
+        protected override void Execute(CodeActivityContext context)
+        {
+            var dbConn = ConnectionString.Get(context);
+            var spName = SPName.Get(context);
+            var listName = ListName.Get(context);
+            var listValue = ListValue.Get(context);
+
+            using (SqlConnection conn = new SqlConnection(dbConn))
+            {
+                conn.Open();
+                using (SqlCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = spName;
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.Parameters.AddWithValue("listName", listName);
+                    cmd.Parameters.AddWithValue("listValue", listValue);
+
+                    var returnParameter = cmd.Parameters.Add("@ReturnVal", SqlDbType.Int);
+                    returnParameter.Direction = ParameterDirection.ReturnValue;
+
+                    cmd.ExecuteNonQuery();
+                    int result = Convert.ToInt32(returnParameter.Value);
+                    //var result = System.Math.Pow(firstNumber + secondNumber, 2);
+                    ResultNumber.Set(context, result);
+                }
+                conn.Close();
+            }
+        }
+    }
+}
